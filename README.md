@@ -1,5 +1,7 @@
 # fetch_parse_sort_m3u8
 
+Link: https://docs.google.com/document/d/12yZTYwlxWuYGXRUjjGlRo-IDs8rcmjqHIVAuINsc6rM/edit?usp=sharing
+
 To fetch, parse, group, and sort an HLS playlist in C++, you can utilize the m3u8-cpp library, a header-only C++ library designed for parsing M3U8 playlists. ​
 Step 1: Set Up the Dependencies
 Ensure you have the necessary dependencies installed:​
