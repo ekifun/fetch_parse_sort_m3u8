@@ -118,8 +118,7 @@ void sortStreamsByResolution(std::vector<std::shared_ptr<StreamItem>>& streams) 
 }
 
 void printSortedStreamsForEachGroup(
-    const std::map<std::string, std::vector<std::shared_ptr<MediaItem>>>& mediaByGroupId,
-    const std::map<std::string, std::vector<std::shared_ptr<StreamItem>>>& streamsByAudioGroup)
+    std::vector<std::shared_ptr<StreamItem>>& streams)
 {
     auto getIntFromJson = [](const nlohmann::json& val) -> int64_t {
         if (val.is_number_integer()) return val.get<int64_t>();
@@ -129,57 +128,36 @@ void printSortedStreamsForEachGroup(
 
     std::cout << "\n====== GROUPED STREAMS BY AUDIO ======\n" << std::endl;
 
-    for (const auto& [groupId, streams] : streamsByAudioGroup) {
-        std::cout << "=== AUDIO GROUP: " << groupId << " ===" << std::endl;
+    // Print each stream
+    for (const auto& stream : streams) {
+        const auto& attr = stream->attributeList;
+        std::cout << "  STREAM: BW=" << getIntFromJson(attr.at("BANDWIDTH"));
 
-        // Print associated media
-        auto it = mediaByGroupId.find(groupId);
-        if (it != mediaByGroupId.end()) {
-            for (const auto& media : it->second) {
-                const auto& attr = media->attributeList;
-                std::cout << "MEDIA: NAME=\"" << attr.at("NAME").get<std::string>() << "\""
-                          << ", URI=\"" << attr.at("URI").get<std::string>() << "\"";
-
-                if (attr.contains("CHANNELS")) {
-                    std::cout << ", CHANNELS=\"" << attr.at("CHANNELS").get<std::string>() << "\"";
-                }
-                if (attr.contains("LANGUAGE")) {
-                    std::cout << ", LANGUAGE=\"" << attr.at("LANGUAGE").get<std::string>() << "\"";
-                }
-                std::cout << std::endl;
+        if (attr.contains("RESOLUTION")) {
+            const auto& res = attr.at("RESOLUTION");
+            std::cout << ", RES=";
+            if (res.is_string()) {
+                std::cout << res.get<std::string>();
+            } else if (res.is_array() && res.size() == 2) {
+                std::cout << res[0] << "x" << res[1];
+            } else {
+                std::cout << "N/A";
             }
         }
 
-        // Print each stream
-        for (const auto& stream : streams) {
-            const auto& attr = stream->attributeList;
-            std::cout << "  STREAM: BW=" << getIntFromJson(attr.at("BANDWIDTH"));
+        if (attr.contains("CODECS")) {
+            std::cout << ", CODECS=\"" << attr.at("CODECS").get<std::string>() << "\"";
+        }
 
-            if (attr.contains("RESOLUTION")) {
-                const auto& res = attr.at("RESOLUTION");
-                std::cout << ", RES=";
-                if (res.is_string()) {
-                    std::cout << res.get<std::string>();
-                } else if (res.is_array() && res.size() == 2) {
-                    std::cout << res[0] << "x" << res[1];
-                } else {
-                    std::cout << "N/A";
-                }
-            }
-
-            if (attr.contains("CODECS")) {
-                std::cout << ", CODECS=\"" << attr.at("CODECS").get<std::string>() << "\"";
-            }
-
-            if (stream->get("uri").is_string()) {
-                std::cout << ", URI=\"" << stream->get("uri").get<std::string>() << "\"";
-            }
-
-            std::cout << std::endl;
+        if (stream->get("uri").is_string()) {
+            std::cout << ", URI=\"" << stream->get("uri").get<std::string>() << "\"";
         }
 
         std::cout << std::endl;
     }
+
+    std::cout << std::endl;
+
 }
 
 int main(int argc, char* argv[]) {
@@ -205,12 +183,12 @@ int main(int argc, char* argv[]) {
     for (auto& [groupId, streams] : streamsByAudioGroup) {
         if (sortMode == SORT_BY_BW) {
             sortStreamsByBandwidth(streams);
+            printSortedStreamsForEachGroup(streams);
         } else {
             sortStreamsByResolution(streams);
+            printSortedStreamsForEachGroup(streams);
         }
     }
-
-    printSortedStreamsForEachGroup(mediaByGroupId, streamsByAudioGroup);
 
     return 0;
 }
