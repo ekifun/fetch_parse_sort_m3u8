@@ -89,32 +89,42 @@ void sortStreams(std::vector<std::shared_ptr<StreamItem>>& streams, SortMode mod
         }
     };
 
-    auto compareByBandwidth = [](const std::shared_ptr<StreamItem>& a,
-                                 const std::shared_ptr<StreamItem>& b) {
-        auto& attrA = a->attributeList;
-        auto& attrB = b->attributeList;
+    // Define all comparators in a lookup map
+    static const std::unordered_map<SortMode,
+        std::function<bool(const std::shared_ptr<StreamItem>&, const std::shared_ptr<StreamItem>&)>> comparatorMap = {
+        {
+            SORT_BY_BW,
+            [](const std::shared_ptr<StreamItem>& a, const std::shared_ptr<StreamItem>& b) {
+                auto& attrA = a->attributeList;
+                auto& attrB = b->attributeList;
 
-        int64_t bwA = attrA.contains("BANDWIDTH") ? attrA.get("BANDWIDTH").get<int64_t>() : 0;
-        int64_t bwB = attrB.contains("BANDWIDTH") ? attrB.get("BANDWIDTH").get<int64_t>() : 0;
+                int64_t bwA = attrA.contains("BANDWIDTH") ? attrA.get("BANDWIDTH").get<int64_t>() : 0;
+                int64_t bwB = attrB.contains("BANDWIDTH") ? attrB.get("BANDWIDTH").get<int64_t>() : 0;
 
-        return bwA > bwB;
+                return bwA > bwB;
+            }
+        },
+        {
+            SORT_BY_RES,
+            [parseRes](const std::shared_ptr<StreamItem>& a, const std::shared_ptr<StreamItem>& b) {
+                auto& attrA = a->attributeList;
+                auto& attrB = b->attributeList;
+
+                int64_t resA = attrA.contains("RESOLUTION") ? parseRes(attrA.get("RESOLUTION")) : 0;
+                int64_t resB = attrB.contains("RESOLUTION") ? parseRes(attrB.get("RESOLUTION")) : 0;
+
+                return resA > resB;
+            }
+        }
+        // Add more SortMode entries here in the future
     };
 
-    auto compareByResolution = [parseRes](const std::shared_ptr<StreamItem>& a,
-                                          const std::shared_ptr<StreamItem>& b) {
-        auto& attrA = a->attributeList;
-        auto& attrB = b->attributeList;
-
-        int64_t resA = attrA.contains("RESOLUTION") ? parseRes(attrA.get("RESOLUTION")) : 0;
-        int64_t resB = attrB.contains("RESOLUTION") ? parseRes(attrB.get("RESOLUTION")) : 0;
-
-        return resA > resB;
-    };
-
-    if (mode == SORT_BY_BW) {
-        std::sort(streams.begin(), streams.end(), compareByBandwidth);
+    auto it = comparatorMap.find(mode);
+    if (it != comparatorMap.end()) {
+        std::sort(streams.begin(), streams.end(), it->second);
     } else {
-        std::sort(streams.begin(), streams.end(), compareByResolution);
+        // Optionally handle unknown sort mode
+        throw std::invalid_argument("Unsupported sort mode");
     }
 }
 
