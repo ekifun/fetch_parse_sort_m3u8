@@ -78,22 +78,8 @@ void parseAndGroupStreams(
     }
 }
 
-void sortStreamsByBandwidth(std::vector<std::shared_ptr<StreamItem>>& streams) {
-    std::sort(streams.begin(), streams.end(), [](const std::shared_ptr<StreamItem>& a,
-                                                  const std::shared_ptr<StreamItem>& b) {
-        auto& attrA = a->attributeList;
-        auto& attrB = b->attributeList;
-
-        int64_t bwA = attrA.contains("BANDWIDTH") ? attrA.get("BANDWIDTH").get<int64_t>() : 0;
-        int64_t bwB = attrB.contains("BANDWIDTH") ? attrB.get("BANDWIDTH").get<int64_t>() : 0;
-
-        return bwA > bwB;
-    });
-}
-
-void sortStreamsByResolution(std::vector<std::shared_ptr<StreamItem>>& streams) {
+void sortStreams(std::vector<std::shared_ptr<StreamItem>>& streams, SortMode mode) {
     auto parseRes = [](const nlohmann::json& resVal) -> int64_t {
-        
         try {
             int64_t w = resVal[0].get<int64_t>();
             int64_t h = resVal[1].get<int64_t>();
@@ -101,12 +87,21 @@ void sortStreamsByResolution(std::vector<std::shared_ptr<StreamItem>>& streams) 
         } catch (...) {
             return 0;
         }
-
-        return 0;
     };
 
-    std::sort(streams.begin(), streams.end(), [parseRes](const std::shared_ptr<StreamItem>& a,
-                                                         const std::shared_ptr<StreamItem>& b) {
+    auto compareByBandwidth = [](const std::shared_ptr<StreamItem>& a,
+                                 const std::shared_ptr<StreamItem>& b) {
+        auto& attrA = a->attributeList;
+        auto& attrB = b->attributeList;
+
+        int64_t bwA = attrA.contains("BANDWIDTH") ? attrA.get("BANDWIDTH").get<int64_t>() : 0;
+        int64_t bwB = attrB.contains("BANDWIDTH") ? attrB.get("BANDWIDTH").get<int64_t>() : 0;
+
+        return bwA > bwB;
+    };
+
+    auto compareByResolution = [parseRes](const std::shared_ptr<StreamItem>& a,
+                                          const std::shared_ptr<StreamItem>& b) {
         auto& attrA = a->attributeList;
         auto& attrB = b->attributeList;
 
@@ -114,7 +109,13 @@ void sortStreamsByResolution(std::vector<std::shared_ptr<StreamItem>>& streams) 
         int64_t resB = attrB.contains("RESOLUTION") ? parseRes(attrB.get("RESOLUTION")) : 0;
 
         return resA > resB;
-    });
+    };
+
+    if (mode == SORT_BY_BW) {
+        std::sort(streams.begin(), streams.end(), compareByBandwidth);
+    } else {
+        std::sort(streams.begin(), streams.end(), compareByResolution);
+    }
 }
 
 void printSortedStreamsForEachGroup(
@@ -181,13 +182,8 @@ int main(int argc, char* argv[]) {
     parseAndGroupStreams(playlistContent, mediaByGroupId, streamsByAudioGroup);
 
     for (auto& [groupId, streams] : streamsByAudioGroup) {
-        if (sortMode == SORT_BY_BW) {
-            sortStreamsByBandwidth(streams);
-            printSortedStreamsForEachGroup(streams);
-        } else {
-            sortStreamsByResolution(streams);
-            printSortedStreamsForEachGroup(streams);
-        }
+        sortStreams(streams, sortMode);
+        printSortedStreamsForEachGroup(streams);
     }
 
     return 0;
